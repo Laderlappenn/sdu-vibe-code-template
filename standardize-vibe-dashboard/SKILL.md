@@ -1,6 +1,6 @@
 ---
 name: standardize-vibe-dashboard
-description: Standardize CSV-first dashboard vibe coding into lightweight React + FastAPI + ClickHouse services with explicit schema.table query contracts, dashboard SQL SELECT files, Docker Compose, SDU Data Portal UI rules, and hot-swap database integration. Use when business analysts have only CSV files plus wishes/prompts and want to vibe-code a dashboard, when converting static HTML/CSV dashboards, replacing static JSON/HTML data with ClickHouse-backed APIs, preparing chart SQL from CSV-backed ClickHouse tables, or making a dashboard project easy to connect to an internal ClickHouse contour.
+description: Standardize CSV-first dashboard vibe coding into lightweight React + FastAPI + ClickHouse services with explicit schema.table query contracts, dashboard SQL SELECT files, Docker Compose, SDU Data Portal UI rules, hot-swap database integration, and a mandatory exported app image under image/. Use when business analysts have only CSV files plus wishes/prompts and want to vibe-code a dashboard, when converting static HTML/CSV dashboards, replacing static JSON/HTML data with ClickHouse-backed APIs, preparing chart SQL from CSV-backed ClickHouse tables, or making a dashboard project easy to connect to an internal ClickHouse contour.
 ---
 
 # Standardize Vibe Dashboard
@@ -42,7 +42,13 @@ Use this skill to guide dashboard work from the first business-analyst prompt, n
    - backend tests or `python -m compileall backend`
    - frontend `npm run build` when dependencies are available
    - `docker compose config`
-11. For admin handoff, create/update `image/` with the app image tar and `.env.example` when the user needs to pass the result to admins. Do not include ClickHouse image tar unless explicitly requested.
+11. Always finish app creation by exporting the app image into `image/`:
+   - ensure the app service has a stable image tag such as `<app-slug>-app:latest`
+   - run `mkdir -p image`
+   - run `docker compose build app` or the equivalent app image build command
+   - save the app image as `image/<app-slug>-app_<YYYY-MM-DD>.tar`
+   - copy or create the deployable env template as `image/.env.example`
+   - do not include a ClickHouse image tar unless explicitly requested
 
 ## Hard Rules
 
@@ -57,10 +63,11 @@ Use this skill to guide dashboard work from the first business-analyst prompt, n
 - Make dashboards portable by requiring the same fully-qualified `schema.table` names in each contour. If the internal source names differ, DBAs should expose compatibility views with the dashboard contract names instead of changing the app image.
 - Keep the first version lightweight: do not add `contracts/`, `dbt/`, `deploy/helm/`, or `docs/` unless the user explicitly asks for that phase.
 - Do not run a separate frontend nginx/container in the standard app shape. Build React in the app image and serve static files from FastAPI.
+- Every completed dashboard app must include `image/<app-slug>-app_<YYYY-MM-DD>.tar` and `image/.env.example` before final delivery. Treat this as required output, not an optional admin handoff.
 - Prefer stable ClickHouse tables/views owned by the contour. FastAPI should query them through parameterized SQL, not reimplement large transformations in Python.
 - Include `/health` that checks API liveness and a lightweight ClickHouse query such as `SELECT 1`.
 - Keep static exports as fixture/dev data only. Production reads ClickHouse.
-- When shipping to admins, put only deployment inputs in `image/`: the app image tar and `.env.example`. ClickHouse images are contour-owned unless the user asks for an offline bundle.
+- Put only deployment inputs in `image/`: the app image tar and `.env.example`. ClickHouse images are contour-owned unless the user asks for an offline bundle.
 - Do not deliver plain static HTML as the final shape. A quick visual prototype is allowed only if the same repository also contains the standard FastAPI/React/ClickHouse shape.
 - New React dashboards must follow the SDU Data Portal tokens and component rules in `references/sdu-data-portal-design.md`. Do not introduce random brand palettes, one-off radii, or unthemed dark-mode gaps.
 

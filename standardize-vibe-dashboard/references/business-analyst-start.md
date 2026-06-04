@@ -46,7 +46,7 @@ The README must capture:
 7. Apply the SDU Data Portal visual system from `references/sdu-data-portal-design.md`.
 8. Implement FastAPI endpoints over ClickHouse tables shaped exactly like API responses.
 9. Build React into the FastAPI image and serve static files from FastAPI; do not add a separate frontend nginx container.
-10. If handing off to admins, build the app image and save it under `image/` with a matching `.env.example`.
+10. Finalize by creating `image/`, building the app image, saving it as `image/<app-slug>-app_<YYYY-MM-DD>.tar`, and writing `image/.env.example`.
 
 ## Agent Behavior
 
@@ -72,4 +72,4 @@ The first vibe-coded version is acceptable when:
 - `sql/` contains dashboard SELECT queries, no DDL, and exactly one query per file
 - SQL filenames start with the source `schema.table`, then the query name
 - local Docker Compose can seed every sample CSV table needed by the dashboard
-- admin handoff, when requested, includes `image/<app-image>.tar` and `image/.env.example`
+- `image/` exists and contains the exported app image tar plus `image/.env.example`

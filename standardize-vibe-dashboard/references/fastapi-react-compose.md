@@ -60,8 +60,22 @@ Local compose should support:
 
 - one app service that serves `/` and `/api`
 - optional local ClickHouse for dev/test
+- a stable app image tag, for example `image: ${APP_IMAGE:-<app-slug>-app:latest}`
 
 Do not mount `sql/` as ClickHouse init scripts. `sql/` is for dashboard SELECT queries only.
+
+## Final Image Export
+
+Every completed app must be exported to `image/` before final delivery:
+
+```bash
+mkdir -p image
+docker compose build app
+docker save -o image/<app-slug>-app_<YYYY-MM-DD>.tar <app-slug>-app:latest
+cp .env.example image/.env.example
+```
+
+Use the concrete app slug and current date. If Docker is unavailable, report that blocker explicitly instead of treating the image artifact as optional. Do not save the ClickHouse image unless the user explicitly requests an offline bundle.
 
 ## Contour Portability
 

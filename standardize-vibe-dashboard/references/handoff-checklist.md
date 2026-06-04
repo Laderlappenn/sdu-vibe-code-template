@@ -27,5 +27,5 @@ Use this before finalizing a lightweight standardized dashboard.
 - The service starts with only ClickHouse host/user/password/secure/verify env vars.
 - The internal contour exposes the same fully-qualified `schema.table` contract, using views when physical table names differ.
 - `/health` checks the API and ClickHouse.
-- If admins need a transferable bundle, `image/` contains the app image tar and `.env.example`; ClickHouse image tar is included only when requested.
+- `image/` contains the exported app image tar and `.env.example`; ClickHouse image tar is included only when requested.
 - Final answer names any missing upstream work, such as who will own the internal `schema.table` refresh.

@@ -27,6 +27,6 @@ Rules:
 - Keep only ClickHouse connection credentials in env vars. Do not use `CLICKHOUSE_DATABASE`, `DASHBOARD_TABLE`, or one env var per source table.
 - Add Docker Compose for local development.
 - Local Docker Compose should seed all attached CSV table exports needed by the dashboard.
-- If I need to pass the result to admins, create an `image/` folder with the app image tar and `.env.example`.
+- At the end, always create an `image/` folder with the exported app image tar and `image/.env.example`.
 - If requirements are unclear, ask at most three blocking questions and keep the rest as explicit assumptions.
 ```

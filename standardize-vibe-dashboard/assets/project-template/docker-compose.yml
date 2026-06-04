@@ -16,6 +16,7 @@ services:
       retries: 20
 
   app:
+    image: ${APP_IMAGE:-vibe-dashboard-app:latest}
     build:
       context: .
       dockerfile: backend/Dockerfile

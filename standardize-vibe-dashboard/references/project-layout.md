@@ -21,7 +21,7 @@ Use this lightweight layout for early dashboard projects that originate from CSV
 │   ├── src/
 │   └── package.json
 ├── image/
-│   ├── <app-image>.tar
+│   ├── <app-slug>-app_<YYYY-MM-DD>.tar
 │   └── .env.example
 ├── docker-compose.yml
 └── README.md
@@ -34,7 +34,7 @@ Use this lightweight layout for early dashboard projects that originate from CSV
 - `sql/` files contain exactly one query each.
 - `backend/`: FastAPI service that reads ClickHouse, exposes dashboard APIs, and serves the built React files.
 - `frontend/`: React source built into the FastAPI image. It never contains DB credentials and never queries ClickHouse directly.
-- `image/`: optional admin handoff folder with app image tar and `.env.example`.
+- `image/`: required final artifact folder with the exported app image tar and `.env.example`.
 - `docker-compose.yml`: local runtime for one app service and optional local ClickHouse.
 
 ## Naming
@@ -53,6 +53,6 @@ Use this lightweight layout for early dashboard projects that originate from CSV
 - SELECT-only dashboard SQL under `sql/`, with one query per file and filenames shaped as `<schema>.<table>.<query_name>.sql`.
 - FastAPI `/health` and at least one dashboard data endpoint.
 - React page that loads from FastAPI through `VITE_API_BASE_URL`.
-- One Dockerfile for the app image and a local compose file.
+- One Dockerfile for the app image, a stable app image tag, and a local compose file.
 - README with local run commands and expected source tables as `schema.table`.
-- `image/` with the app image tar and `.env.example` when admins need a transferable artifact.
+- `image/<app-slug>-app_<YYYY-MM-DD>.tar` and `image/.env.example` created at the end of app creation.
