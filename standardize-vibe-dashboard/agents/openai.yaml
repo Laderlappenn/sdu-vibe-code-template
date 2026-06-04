@@ -1,0 +1,4 @@
+interface:
+  display_name: "Standardize Vibe Dashboard"
+  short_description: "Light CSV dashboards with SDU design"
+  default_prompt: "Use $standardize-vibe-dashboard to start from CSV files and analyst wishes, then build the lightweight ClickHouse plus single FastAPI app serving React, Docker Compose, and SDU Data Portal UI structure."
