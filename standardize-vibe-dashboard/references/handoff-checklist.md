@@ -11,21 +11,26 @@ Use this before finalizing a lightweight standardized dashboard.
 - UI labels and charts match the source dashboard domain.
 - Local fixtures are small and anonymized.
 - No credentials are committed.
+- Backend data access uses SQLAlchemy declarative models and expression statements; no raw SQL strings or `.sql` file loading remains.
 
 ## For Data/SQL Review
 
 - `data/` fixtures, if present, are table exports named `schema.table.csv`; multiple exports are allowed.
-- SQL files under `sql/` are SELECT-only and map to visible KPIs/charts/tables/filters.
+- SQL files under `sql/` are future-analyst SELECT references and map to visible KPIs/charts/tables/filters.
 - SQL files are named `<schema>.<table>.<query_name>.sql`.
 - Each `.sql` file contains exactly one query.
 - Every query uses explicit `schema.table`, not `CLICKHOUSE_DATABASE`.
-- Any local bootstrap DDL lives only in local compose/seed logic, not in `sql/`.
+- Backend repositories independently implement the runtime behavior through ORM models/statements.
+- No app code, app test, Docker stage, volume, or startup command reads or executes `sql/`.
+- Any local bootstrap DDL lives only in dev seed logic, not in `sql/` or the production app startup path.
 
 ## For Integration Review
 
 - Switching from local ClickHouse to internal ClickHouse does not require frontend changes.
-- The service starts with only ClickHouse host/user/password/secure/verify env vars.
+- The service starts with only ClickHouse host/user/password/secure/verify env vars; table names come from ORM models.
 - The internal contour exposes the same fully-qualified `schema.table` contract, using views when physical table names differ.
 - `/health` checks the API and ClickHouse.
-- `image/` contains the exported app image tar and `.env.example`; ClickHouse image tar is included only when requested.
+- `docker image inspect` reports the requested Linux target, `linux/amd64` by default.
+- The app image contains neither `/app/sql` nor any `.sql` files.
+- `image/` contains the platform-labelled Linux app tar and `.env.example`; ClickHouse image tar is included only when requested.
 - Final answer names any missing upstream work, such as who will own the internal `schema.table` refresh.

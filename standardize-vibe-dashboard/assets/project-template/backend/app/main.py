@@ -1,17 +1,21 @@
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import literal, select
+from sqlalchemy.orm import Session
 
-from .clickhouse import get_client, qualified_identifier_parts, rows, table_preview
+from .database import get_session
+from .repositories import source_table_metadata, source_table_names
 from .settings import settings
 
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 INDEX_HTML = STATIC_DIR / "index.html"
-SOURCE_TABLES = ["gold.example_table"]
+DbSession = Annotated[Session, Depends(get_session)]
 
 app = FastAPI(title="Dashboard API", version="0.1.0")
 app.add_middleware(
@@ -24,60 +28,28 @@ app.add_middleware(
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    get_client().query("select 1")
+def health(db: DbSession) -> dict[str, str]:
+    db.scalar(select(literal(1)))
     return {"status": "ok", "clickhouse": "ok"}
 
 
 @app.get("/api/meta")
-def meta() -> dict[str, object]:
-    tables: list[dict[str, object]] = []
-    for source_table in SOURCE_TABLES:
-        schema, table_name = qualified_identifier_parts(source_table)
-        tables.extend(
-            rows(
-                """
-                select
-                  database,
-                  name,
-                  total_rows,
-                  total_bytes
-                from system.tables
-                where database = {database:String}
-                  and name = {table:String}
-                order by name
-                """,
-                {"database": schema, "table": table_name},
-            )
-        )
-    return {"sourceTables": SOURCE_TABLES, "tables": tables}
-
-
-@app.get("/api/dashboard/summary")
-def dashboard_summary() -> dict[str, object]:
-    tables = []
-    for source_table in SOURCE_TABLES:
-        schema, table_name = qualified_identifier_parts(source_table)
-        tables.extend(
-            rows(
-                "select concat(database, '.', name) as name from system.tables where database = {database:String} and name = {table:String}",
-                {"database": schema, "table": table_name},
-            )
-        )
+def meta(db: DbSession) -> dict[str, object]:
     return {
-        "sourceTables": SOURCE_TABLES,
-        "tableCount": len(tables),
-        "tables": [item["name"] for item in tables],
+        "sourceTables": source_table_names(),
+        "tables": source_table_metadata(db),
     }
 
 
-@app.get("/api/tables/{table_name}/preview")
-def preview_table(table_name: str, limit: int = Query(default=100, ge=1, le=500)) -> dict[str, object]:
-    try:
-        data = table_preview(table_name, limit=limit)
-    except Exception as exc:
-        raise HTTPException(status_code=404, detail="Table is unavailable") from exc
-    return {"table": table_name, "rows": data}
+@app.get("/api/dashboard/summary")
+def dashboard_summary(db: DbSession) -> dict[str, object]:
+    source_tables = source_table_names()
+    tables = source_table_metadata(db)
+    return {
+        "sourceTables": source_tables,
+        "tableCount": len(tables),
+        "tables": [item["name"] for item in tables],
+    }
 
 
 if (STATIC_DIR / "assets").exists():

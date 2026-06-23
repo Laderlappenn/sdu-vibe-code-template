@@ -1,4 +1,4 @@
 interface:
   display_name: "Standardize Vibe Dashboard"
-  short_description: "Light CSV dashboards with SDU design"
-  default_prompt: "Use $standardize-vibe-dashboard to start from CSV files and analyst wishes, then build the lightweight ClickHouse plus single FastAPI app serving React, Docker Compose, SDU Data Portal UI, and a final image/ app-image export."
+  short_description: "ORM dashboards with Linux image export"
+  default_prompt: "Use $standardize-vibe-dashboard to turn CSV files and analyst wishes into a React and FastAPI dashboard with SQLAlchemy ORM runtime access, analyst-only SQL references, and a verified Linux server image export."

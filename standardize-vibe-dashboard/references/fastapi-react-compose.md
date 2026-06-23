@@ -2,7 +2,7 @@
 
 ## Backend
 
-Use FastAPI with `clickhouse-connect`. The same FastAPI app serves API routes and built React static files.
+Use FastAPI with SQLAlchemy 2 and the `clickhouse-connect` dialect. The same FastAPI app serves API routes and built React static files.
 
 Required env vars:
 
@@ -16,7 +16,7 @@ CLICKHOUSE_VERIFY
 CORS_ORIGINS
 ```
 
-Table names are not env vars in the standard shape. The backend queries use fully-qualified `schema.table` names from the SQL/data contract.
+Table names are not env vars in the standard shape. Declarative models use explicit schemas and table names from the data contract.
 
 Required endpoints:
 
@@ -27,9 +27,10 @@ Required endpoints:
 
 Backend rules:
 
-- Use parameterized ClickHouse queries.
-- Use explicit `schema.table` in every query.
-- Mirror important dashboard queries in `sql/<schema>.<table>.<query_name>.sql`, with exactly one query per file.
+- Define one declarative model per ClickHouse source and use SQLAlchemy `Session` dependencies.
+- Build queries with `select()`, `func`, `case`, joins, and bound filters over model columns.
+- Do not use raw SQL strings, SQLAlchemy `text()`, driver `.query()`/`.command()`, or runtime reads from `sql/`.
+- Keep matching analyst references in `sql/<schema>.<table>.<query_name>.sql`, one query per file, without consuming them from the backend.
 - Do not require `DASHBOARD_TABLE` or one env var per CSV/table.
 - Serve the Vite `dist/` output from FastAPI, including `/assets/*` and SPA fallback to `index.html`.
 - Return frontend-ready JSON with stable field names.
@@ -61,21 +62,21 @@ Local compose should support:
 - one app service that serves `/` and `/api`
 - optional local ClickHouse for dev/test
 - a stable app image tag, for example `image: ${APP_IMAGE:-<app-slug>-app:latest}`
+- an explicit app platform, `platform: ${APP_PLATFORM:-linux/amd64}`
 
-Do not mount `sql/` as ClickHouse init scripts. `sql/` is for dashboard SELECT queries only.
+Do not mount or copy `sql/` into any service. It is analyst documentation only. Add both `sql/` and `*.sql` to the root `.dockerignore`.
 
 ## Final Image Export
 
-Every completed app must be exported to `image/` before final delivery:
+Every completed app must be exported for the deployment server platform, `linux/amd64` by default:
 
 ```bash
-mkdir -p image
-docker compose build app
-docker save -o image/<app-slug>-app_<YYYY-MM-DD>.tar <app-slug>-app:latest
-cp .env.example image/.env.example
+python3 <skill-folder>/scripts/export_app_image.py \
+  --project-dir . \
+  --app-slug <app-slug>
 ```
 
-Use the concrete app slug and current date. If Docker is unavailable, report that blocker explicitly instead of treating the image artifact as optional. Do not save the ClickHouse image unless the user explicitly requests an offline bundle.
+The script builds through Compose with `APP_PLATFORM=linux/amd64`, verifies the inspected OS/architecture, rejects `.sql` content, saves the platform-labelled tar, and copies `.env.example`. Pass `--platform linux/arm64` only when that is the declared server target. Do not infer the target architecture from a developer Mac. If Docker is unavailable, report that blocker explicitly instead of treating the artifact as optional. Do not save the ClickHouse image unless the user explicitly requests an offline bundle.
 
 ## Contour Portability
 

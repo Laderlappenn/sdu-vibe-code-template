@@ -6,7 +6,7 @@ This repository contains one installable agent skill:
 standardize-vibe-dashboard/
 ```
 
-The skill helps agents turn CSV-first dashboard requests into lightweight React + FastAPI + ClickHouse services with explicit `schema.table` query contracts, dashboard SQL files, Docker Compose runtime, SDU Data Portal UI rules, and a final exported app image under `image/`.
+The skill helps agents turn CSV-first dashboard requests into lightweight React + FastAPI + ClickHouse services with SQLAlchemy ORM runtime access, analyst-only SQL references, Docker Compose runtime, SDU Data Portal UI rules, and a platform-verified Linux server image under `image/`.
 
 ## Install
 

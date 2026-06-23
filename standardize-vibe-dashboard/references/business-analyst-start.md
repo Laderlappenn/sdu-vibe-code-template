@@ -40,13 +40,15 @@ The README must capture:
 1. Put CSV fixtures under `data/`; multiple table exports are allowed, one source table per CSV, with names like `gold.citizen_appeals.csv`.
 2. Run `scripts/inspect_csv_exports.py data/` when useful to infer headers and a first-pass ClickHouse type contract.
 3. Choose and document every source table as `schema.table`; do not add one env var per table.
-4. Scaffold or adapt React + FastAPI + ClickHouse from `assets/project-template/`.
-5. Add local ClickHouse seed/bootstrap for every CSV table needed by the demo; keep DDL outside `sql/`.
-6. Create SELECT-only SQL files under `sql/` for the actual dashboard KPIs/charts/tables, one query per file, named as `<schema>.<table>.<query_name>.sql`.
-7. Apply the SDU Data Portal visual system from `references/sdu-data-portal-design.md`.
-8. Implement FastAPI endpoints over ClickHouse tables shaped exactly like API responses.
-9. Build React into the FastAPI image and serve static files from FastAPI; do not add a separate frontend nginx container.
-10. Finalize by creating `image/`, building the app image, saving it as `image/<app-slug>-app_<YYYY-MM-DD>.tar`, and writing `image/.env.example`.
+4. Scaffold or adapt React + FastAPI + SQLAlchemy + ClickHouse from `assets/project-template/`.
+5. Define a declarative ORM model for every source table/view, with `__tablename__` and an explicit schema in `__table_args__`.
+6. Implement dashboard repositories with `Session`, `select()`, SQLAlchemy functions, joins, and bound filters. Do not load SQL files or execute raw SQL strings in the backend.
+7. Add local ClickHouse seed/bootstrap for every CSV table needed by the demo; keep it in dev-only code, outside `sql/` and outside the production startup path.
+8. After the ORM implementation works, create SELECT-only files under `sql/` for future analysts, one query per file, named as `<schema>.<table>.<query_name>.sql`. The app must not consume them.
+9. Apply the SDU Data Portal visual system from `references/sdu-data-portal-design.md`.
+10. Implement FastAPI endpoints over the ORM layer shaped exactly like API responses.
+11. Build React into the FastAPI image and serve static files from FastAPI; do not add a separate frontend nginx container.
+12. Finalize by creating `image/`, building for explicit `linux/amd64` by default, verifying the image platform and absence of `.sql` files, saving it as `image/<app-slug>-app_linux-amd64_<YYYY-MM-DD>.tar`, and writing `image/.env.example`.
 
 ## Agent Behavior
 
@@ -68,8 +70,10 @@ The first vibe-coded version is acceptable when:
 - API calls come from FastAPI, not direct CSV reads in the browser
 - the React build is served by the same FastAPI app that serves `/api`
 - ClickHouse connection is controlled by env vars
-- queries use explicit `schema.table` names from the data/SQL contract
-- `sql/` contains dashboard SELECT queries, no DDL, and exactly one query per file
+- runtime queries use SQLAlchemy ORM models/statements with explicit `schema.table` mappings and no raw SQL strings
+- `sql/` contains future-analyst SELECT references, no DDL, and exactly one query per file
+- neither backend code nor the app image reads, executes, or contains `.sql` files
 - SQL filenames start with the source `schema.table`, then the query name
 - local Docker Compose can seed every sample CSV table needed by the dashboard
-- `image/` exists and contains the exported app image tar plus `image/.env.example`
+- `image/` contains the platform-labelled Linux app tar plus `image/.env.example`
+- image inspection reports the requested Linux target, `linux/amd64` by default

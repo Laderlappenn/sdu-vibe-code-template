@@ -1,4 +1,5 @@
 fastapi>=0.115
 uvicorn[standard]>=0.32
-clickhouse-connect>=0.8
+clickhouse-connect>=1.0,<2.0
+SQLAlchemy>=2.0,<3.0
 pydantic-settings>=2.6
