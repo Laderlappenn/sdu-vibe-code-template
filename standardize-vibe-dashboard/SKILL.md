@@ -1,6 +1,6 @@
 ---
 name: standardize-vibe-dashboard
-description: Standardize CSV-first dashboard vibe coding into lightweight React + FastAPI + ClickHouse services with SQLAlchemy ORM runtime access, analyst-only SQL SELECT artifacts excluded from the app image, Docker Compose, SDU Data Portal UI rules, hot-swap database integration, and a mandatory Linux server image export under image/. Use when business analysts have only CSV files plus wishes/prompts and want to vibe-code a dashboard, when converting static HTML/CSV dashboards, replacing static JSON/HTML data with ClickHouse-backed APIs, preparing future analyst SQL from CSV-backed ClickHouse tables, or making a dashboard project easy to connect to an internal ClickHouse contour.
+description: Standardize CSV-first dashboard vibe coding into lightweight React + FastAPI + ClickHouse services with SQLAlchemy ORM runtime access, analyst-only SQL SELECT artifacts excluded from the app image, Docker Compose, SDU Data Portal UI rules, hot-swap database integration, real-contour hardening (verify schema/types against SHOW CREATE TABLE not CSV, server-side aggregation at million-row scale, capped high-cardinality filters, charts that survive many long labels, offline map basemaps), and a mandatory Linux server image export under image/. Use when business analysts have only CSV files plus wishes/prompts and want to vibe-code a dashboard, when converting static HTML/CSV dashboards, replacing static JSON/HTML data with ClickHouse-backed APIs, preparing future analyst SQL from CSV-backed ClickHouse tables, or making a dashboard project easy to connect to an internal ClickHouse contour.
 ---
 
 # Standardize Vibe Dashboard
@@ -39,12 +39,18 @@ Use this skill to guide dashboard work from the first business-analyst prompt, n
 9. Add local runtime assets:
    - `docker-compose.yml` for one app container and optional local ClickHouse
    - local seed/bootstrap creates and reloads every `data/*.csv` table needed for the demo; keep bootstrap logic in dev-only code, never in analyst `sql/` and never in the production app startup path
-10. Validate with at least:
+10. Harden for the real contour before handoff (see `references/real-contour-hardening.md`):
+   - verify model column names/casing and types against `SHOW CREATE TABLE`, not CSV headers (ClickHouse is case-sensitive; datetime/numeric columns are often stored as `String`)
+   - wrap every date operation in `parseDateTimeBestEffortOrNull(toString(col))` so it works whether the column is `String` or `DateTime`
+   - aggregate in ClickHouse; no endpoint may return row-level data without `GROUP BY` or `LIMIT` (contour tables hold millions of rows)
+   - cap high-cardinality filter option lists (top-N) and make charts/maps survive many long category names and offline use (no internet tiles)
+11. Validate with at least:
    - backend tests or `python -m compileall backend`
    - frontend `npm run build` when dependencies are available
    - `docker compose config`
    - a runtime scan confirming the backend does not load `.sql` files or execute raw SQL strings
-11. Always finish app creation by exporting a Linux server image into `image/`:
+   - a check that no endpoint streams a whole table (every query is aggregated or limited)
+12. Always finish app creation by exporting a Linux server image into `image/`:
    - ensure the app service has a stable image tag such as `<app-slug>-app:latest`
    - default `APP_PLATFORM` to `linux/amd64`; change it only when the deployment team specifies another Linux architecture
    - run `python3 <skill-folder>/scripts/export_app_image.py --project-dir . --app-slug <app-slug>` so the build, platform inspection, no-SQL-content check, tar naming, and env copy are enforced together
@@ -67,6 +73,10 @@ Use this skill to guide dashboard work from the first business-analyst prompt, n
 - Do not run a separate frontend nginx/container in the standard app shape. Build React in the app image and serve static files from FastAPI.
 - Every completed dashboard app must include a platform-labelled Linux app tar such as `image/<app-slug>-app_linux-amd64_<YYYY-MM-DD>.tar` and `image/.env.example` before final delivery.
 - Prefer stable ClickHouse tables/views owned by the contour. FastAPI should query them through SQLAlchemy expressions over declarative models, not reimplement large transformations in Python.
+- Verify real schema against `SHOW CREATE TABLE`, not CSV headers. ClickHouse is case-sensitive: bind the real column name when the contour casing differs (`mapped_column("Massa", Float64)`). Do not assume CSV header casing/types match the contour.
+- Treat datetime/numeric columns as possibly `String` in the contour. Wrap date operations in `parseDateTimeBestEffortOrNull(toString(col))` (type-agnostic) and guard with `IS NOT NULL`; wrap a `String` numeric in `toFloat64OrZero(toString(col))` before aggregating.
+- Aggregate in ClickHouse. No endpoint may return row-level data without `GROUP BY` or `LIMIT` — contour tables hold millions of rows. Compute histograms/heatmaps/time buckets in SQL; sample (`order_by(func.rand()).limit(N)`) when raw points are genuinely needed.
+- Cap high-cardinality filter option lists to the top-N most frequent values; do not emit thousands of `<select>` options. Charts must survive many long category names (top-N list + ellipsis + bounded tooltip), and maps must render offline from a bundled GeoJSON basemap (no internet tiles).
 - Include `/health` that checks API liveness and ClickHouse through the ORM session, for example `Session.scalar(select(literal(1)))`, without a raw SQL string.
 - Keep static exports as fixture/dev data only. Production reads ClickHouse.
 - Put only deployment inputs in `image/`: the app image tar and `.env.example`. ClickHouse images are contour-owned unless the user asks for an offline bundle.
@@ -82,6 +92,7 @@ Use this skill to guide dashboard work from the first business-analyst prompt, n
 - Read `references/fastapi-react-compose.md` when implementing service code, env vars, Docker Compose, or runtime integration.
 - Read `references/sdu-data-portal-design.md` when creating or changing React UI, visual tokens, layout, theme support, dashboard cards, buttons, inputs, charts, or prompt guidance for design.
 - Read `references/handoff-checklist.md` before finalizing deliverables for data analysts, DBA, admins, or DevOps.
+- Read `references/real-contour-hardening.md` before deploying onto a real internal ClickHouse contour: schema/type reality vs CSV, aggregate-don't-stream-rows at million-row scale, high-cardinality filters, charts with many long labels, offline map basemaps, and streaming/Markdown AI features.
 
 ## Templates
 
