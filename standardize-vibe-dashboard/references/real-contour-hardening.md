@@ -102,27 +102,72 @@ long ones, which overflow legends and break layout.
 - **Bar charts with name axes:** fix the label column width and truncate; never let a
   label dictate layout width.
 
-## 4. Maps Must Be Recognizable Offline
+## 4. Maps (deck.gl / GeoJSON): Recognizable Offline AND Memory-Safe
 
-Closed contours have no internet tiles. A bare rail/road network on a blank canvas
-reads as "the map is missing."
+Closed contours have no internet tiles, and GeoJSON is the single **heaviest** thing a
+dashboard puts in the browser. Handle both.
 
-- Bundle an **offline GeoJSON basemap** (country boundary, and region/oblast borders)
-  into the image under the frontend's static assets; the app fetches it from its own
-  origin, never from the internet.
-- Draw a filled country/region layer **beneath** the data layers so the geography is
-  recognizable. Reduce coordinate precision (≈4 decimals) to keep the file small.
-- Keep all data overlays (flows, loads, risks) on top, theme-aware for light/dark.
+### 4.1 Recognizable without tiles
+- Bundle an **offline GeoJSON basemap** (country boundary + region/oblast borders) into
+  the image's static assets; the app fetches it from its own origin, never the internet.
+- Draw a filled country/region layer **beneath** the data layers so it reads as a map
+  (a bare network on blank canvas looks broken). Theme-aware light/dark.
+
+### 4.2 GeoJSON is the #1 memory consumer — size the geometry down
+A ~4 MB GeoJSON can become **~200 MB of browser heap**. The chain:
+- `JSON.parse` expands text ~15–20×: every `[lon,lat]` becomes a JS Array object
+  (header + backing store + boxed numbers) — ~15 bytes of text → ~100 bytes in memory.
+- deck.gl **tessellates** geometry into WebGL attribute buffers (the biggest part): a
+  line becomes a triangle ribbon, each point exploding into several vertices × several
+  Float32 buffers (PathLayer even duplicates start/end positions). These live as CPU
+  `ArrayBuffer`s **and** in GPU VRAM.
+- It is held in several forms at once (parsed objects + CPU buffers + GPU).
+
+**Point count drives all of it.** A 166k-point rail network is absurd at country zoom.
+- **Simplify geometry** (Douglas–Peucker / decimation) to ~10–25k points and round
+  coordinates to ~4 decimals (~11 m) — visually identical, cuts parsed arrays,
+  tessellation, GPU memory **and** transfer proportionally (often 5–8×).
+- Delete unused geo files from `public/` (they bloat the image even if never fetched).
+
+### 4.3 Never re-mount the map — it accumulates copies
+Re-creating the deck.gl component re-fetches + re-parses the GeoJSON and rebuilds GPU
+buffers; if old instances linger, the heap holds **several copies** and memory spikes
+(e.g. 250 MB instead of 90 MB). Triggers: a `key={section-…}` on a parent that forces
+remount, unmounting the map on tab switch, remounting on theme/lang toggles.
+- **Keep the map mounted persistently**; hide with CSS (`display`) instead of
+  unmounting. One deck.gl instance for the app's life.
+- **Cache the parsed GeoJSON at module level** — fetched + parsed exactly once, shared
+  by reference across renders.
+- **Memoize** the map and pass **stable prop references** (don't build new `?? []`
+  arrays inline each render) so unrelated state changes don't rebuild layers.
+- Verify with heap snapshots: navigate / reload / toggle theme repeatedly — the
+  `JSArrayBufferData` and `Array` counts must stay flat, not grow.
+
+### 4.4 Serve geo compressed and cached
+- Enable **gzip** on the FastAPI app (`GZipMiddleware`) — geo and the JS bundle shrink
+  ~3–4× (a 2.9 MB geojson → ~450 KB on the wire).
+- Send a long **`Cache-Control`** for `/geo/*` so reloads don't re-download it.
+
+### 4.5 Readable, not a spiderweb
+- Show **one layer at a time** via a switcher (station load / cargo flow / passengers /
+  regions / risks), each with a legend explaining size and colour.
+- Aggregate flows to a coarser unit (**region→region**) so a few thick arcs tell the
+  story instead of hundreds of crossing station→station lines; keep cross-border arcs.
+- Don't hard-filter map data by a localized string (e.g. `country == "Казахстан"`): on
+  the real contour the spelling differs and the layer silently goes empty. Join by code
+  and degrade gracefully.
 
 ## 5. Optional AI Features (Closed-Loop Gateway)
 
 If the dashboard adds an AI brief/assistant against a corporate OpenAI/Anthropic-
 compatible gateway:
 
-- **Stream the response.** Return `StreamingResponse` (`text/plain`) and parse the
-  gateway SSE (`delta.content` for OpenAI, `content_block_delta` for Anthropic); the
-  frontend appends chunks via a `fetch` reader. Send `X-Accel-Buffering: no` so an
-  ingress/proxy does not buffer the stream.
+- **Prefer a single (non-streaming) response in closed contours.** Streaming
+  (`StreamingResponse` + SSE) looks nice but **breaks behind many k8s ingresses/proxies**
+  that buffer the body — the answer never arrives. Observed in production: switching the
+  AI brief/chat to streaming made them stop responding in the closed network. Return the
+  full text in one JSON response and render it; only use streaming if you control the
+  proxy and have set `X-Accel-Buffering: no` end-to-end and verified it.
 - **Render Markdown** in chat/brief output (a tiny dependency-free renderer is enough
   for closed networks: headings, lists, bold, code, links).
 - Keep the principle: the backend computes the numbers, the model only phrases them.
@@ -136,4 +181,7 @@ compatible gateway:
 - [ ] Filter option lists capped (top-N) or replaced with search.
 - [ ] Structure charts: top-N list + ellipsis + capped tooltip; many-slice colors.
 - [ ] Offline map basemap bundled; no runtime internet fetch.
+- [ ] Map GeoJSON simplified (≤~25k points) and served gzipped + cached.
+- [ ] Map mounted once (no `key`-driven remount); parsed GeoJSON module-cached; map memoized.
+- [ ] Heap snapshot stable across tab/theme/reload navigation (no growing `ArrayBuffer`/`Array`).
 - [ ] Memory profile on real (or real-sized) data shows no whole-table payloads.
