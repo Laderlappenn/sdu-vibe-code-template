@@ -35,6 +35,8 @@ Backend rules:
 - Serve the Vite `dist/` output from FastAPI, including `/assets/*` and SPA fallback to `index.html`.
 - Return frontend-ready JSON with stable field names.
 - Do not expose ClickHouse errors or credentials in responses.
+- Aggregate at million-row scale: every endpoint returns a `GROUP BY` aggregate or an explicit `LIMIT`/sample, never a whole table. Cap high-cardinality filter values (`/api/filters`) to the top-N most frequent. See `real-contour-hardening.md`.
+- For an optional AI brief/assistant, stream the gateway response with `StreamingResponse` (`text/plain`, header `X-Accel-Buffering: no`) and parse SSE deltas; the backend computes numbers, the model only phrases them.
 
 ## Frontend
 
@@ -51,9 +53,11 @@ Frontend rules:
 - Fetch through FastAPI only.
 - Build React into the FastAPI image; do not run a separate nginx/frontend container.
 - Keep charts, map interaction, filters, and formatting in React.
-- Do not bundle full CSV/JSON exports in production.
+- Do not bundle full CSV/JSON exports in production; consume aggregated DTOs only.
 - Use loading, empty, and error states.
 - Keep all dashboard labels domain-specific; avoid generic placeholder text in final UI.
+- Design charts/filters for real cardinality: hundreds of long category names must not break layout. Pair a structure pie with a top-N list, truncate long labels with ellipsis, bound tooltip width, and use distinguishable colors for many slices.
+- In closed networks, render maps from a bundled GeoJSON basemap (country/region boundaries beneath the data layers); never depend on internet tiles. Render AI chat/brief output as Markdown. See `real-contour-hardening.md`.
 
 ## Docker Compose
 

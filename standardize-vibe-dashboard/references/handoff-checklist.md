@@ -29,6 +29,9 @@ Use this before finalizing a lightweight standardized dashboard.
 - Switching from local ClickHouse to internal ClickHouse does not require frontend changes.
 - The service starts with only ClickHouse host/user/password/secure/verify env vars; table names come from ORM models.
 - The internal contour exposes the same fully-qualified `schema.table` contract, using views when physical table names differ.
+- Model column names/casing and types were verified against `SHOW CREATE TABLE` (not CSV); date/numeric columns stored as `String` are handled with `parseDateTimeBestEffortOrNull(toString(col))` / `toFloat64OrZero`.
+- No endpoint returns row-level data without `GROUP BY` or `LIMIT`; histograms/heatmaps are computed in SQL and a memory profile on real-sized data shows no whole-table payloads.
+- High-cardinality filter lists are capped (top-N); structure charts survive many long category names; maps render offline from a bundled GeoJSON basemap.
 - `/health` checks the API and ClickHouse.
 - `docker image inspect` reports the requested Linux target, `linux/amd64` by default.
 - The app image contains neither `/app/sql` nor any `.sql` files.

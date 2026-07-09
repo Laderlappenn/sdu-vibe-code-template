@@ -176,7 +176,13 @@ def main() -> None:
     args = parser.parse_args()
 
     reports = [inspect_csv(path, args.default_schema, args.sample_size) for path in iter_csv_files(args.paths)]
-    print(json.dumps({"tables": reports}, ensure_ascii=False, indent=2))
+    note = (
+        "CSV header casing and inferred types are HINTS for the local seed only. "
+        "The real contour is case-sensitive and often stores dates/numbers as String. "
+        "Verify against SHOW CREATE TABLE before finalizing ORM models — see "
+        "references/real-contour-hardening.md."
+    )
+    print(json.dumps({"_note": note, "tables": reports}, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
